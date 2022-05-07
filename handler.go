@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"math/rand"
 	"net/http"
 	"time"
@@ -22,13 +23,13 @@ type Handler interface {
 	Handle(w http.ResponseWriter, r *http.Request)
 }
 
-func NewHandler(verificationToken string, googleApiKey string, customSearchEngineId string) Handler {
+func NewHandler(verificationToken string, googleApiKey string, customSearchEngineId string) (Handler, error) {
 	ctx := context.Background()
 	service, err := customsearch.NewService(ctx, option.WithAPIKey(googleApiKey))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &handler{verificationToken, service, customSearchEngineId}
+	return &handler{verificationToken, service, customSearchEngineId}, nil
 }
 
 func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -36,11 +37,13 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("slash commnd pase error.", err)
 		return
 	}
 
 	if !s.ValidateToken(h.verificationToken) {
 		w.WriteHeader(http.StatusUnauthorized)
+		log.Println("validate token error.")
 		return
 	}
 
@@ -53,17 +56,19 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 		b, err := json.Marshal(params)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("json marshal error.", err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if _, err := w.Write(b); err != nil {
-			panic(err)
+			log.Fatal("Response write error.", err)
 		}
 	default:
 		// TODO: Implement keyword counter
 		links, err := h.search(s.Text, 1)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("search error.", err)
 			return
 		}
 		params := &slack.Msg{
@@ -73,11 +78,12 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 		b, err := json.Marshal(params)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("json marshal error.", err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if _, err := w.Write(b); err != nil {
-			panic(err)
+			log.Fatal("Response write error.", err)
 		}
 	}
 }

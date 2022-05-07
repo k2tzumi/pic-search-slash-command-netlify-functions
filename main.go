@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"os"
 
@@ -13,7 +14,10 @@ func main() {
 	googleApiKey := os.Getenv("GOOGLE_API_KEY")
 	customSearchEngineId := os.Getenv("CUSTOM_SEARCH_ENGINE_ID")
 
-	handler := NewHandler(verificationToken, googleApiKey, customSearchEngineId)
+	handler, err := NewHandler(verificationToken, googleApiKey, customSearchEngineId)
+	if err != nil {
+		log.Fatal("new handler faild.", err)
+	}
 
 	http.HandleFunc("/", handler.Handle)
 
