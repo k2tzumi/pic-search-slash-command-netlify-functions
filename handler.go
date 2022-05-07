@@ -1,22 +1,34 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/slack-go/slack"
+	customsearch "google.golang.org/api/customsearch/v1"
+	"google.golang.org/api/option"
 )
 
 type handler struct {
-	verificationToken string
+	verificationToken    string
+	cse                  *customsearch.Service
+	customSearchEngineId string
 }
 
 type Handler interface {
 	Handle(w http.ResponseWriter, r *http.Request)
 }
 
-func NewHandler(verificationToken string) Handler {
-	return &handler{verificationToken}
+func NewHandler(verificationToken string, googleApiKey string, customSearchEngineId string) Handler {
+	ctx := context.Background()
+	service, err := customsearch.NewService(ctx, option.WithAPIKey(googleApiKey))
+	if err != nil {
+		panic(err)
+	}
+	return &handler{verificationToken, service, customSearchEngineId}
 }
 
 func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -48,8 +60,14 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 		}
 	default:
+		// TODO: Implement keyword counter
+		links, err := h.search(s.Text, 1)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		params := &slack.Msg{
-			Text:         s.Text + "\nTODO\nhttps://cdn.pixabay.com/photo/2020/05/30/09/53/todo-lists-5238324_1280.jpg",
+			Text:         pickup(links),
 			ResponseType: slack.ResponseTypeInChannel,
 		}
 		b, err := json.Marshal(params)
@@ -62,4 +80,39 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 			panic(err)
 		}
 	}
+}
+
+func (h *handler) search(keyword string, repeate int) ([]string, error) {
+	// Number of search results to return
+	const NUM = 10
+	start := int64(NUM*(repeate-1) + 1)
+
+	// Search query
+	search := h.cse.Cse.List()
+	search.Cx(h.customSearchEngineId)
+	search.SearchType("image")
+	search.Q(keyword)
+	search.Safe("active")
+	search.Lr("lang_ja")
+	search.Num(NUM)
+	search.Start(start)
+
+	call, err := search.Do()
+	if err != nil {
+		return nil, err
+	}
+
+	links := make([]string, len(call.Items))
+
+	for index, r := range call.Items {
+		links[index] = r.Link
+	}
+
+	return links, nil
+}
+
+func pickup(links []string) string {
+	rand.Seed(time.Now().UnixNano())
+
+	return links[rand.Intn(len(links))]
 }

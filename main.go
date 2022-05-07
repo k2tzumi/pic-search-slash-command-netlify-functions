@@ -10,8 +10,10 @@ import (
 
 func main() {
 	verificationToken := os.Getenv("VERIFICATION_TOKEN")
+	googleApiKey := os.Getenv("GOOGLE_API_KEY")
+	customSearchEngineId := os.Getenv("CUSTOM_SEARCH_ENGINE_ID")
 
-	handler := NewHandler(verificationToken)
+	handler := NewHandler(verificationToken, googleApiKey, customSearchEngineId)
 
 	http.HandleFunc("/", handler.Handle)
 
