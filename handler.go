@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/slack-go/slack"
+	"golang.org/x/oauth2/google"
 	customsearch "google.golang.org/api/customsearch/v1"
 	"google.golang.org/api/option"
 )
@@ -66,7 +67,18 @@ func NewHandler(verificationToken string, serviceAccountKey ServiceAccountKey, c
 	}
 
 	ctx := context.Background()
-	service, err := customsearch.NewService(ctx, option.WithCredentialsJSON(jsonKey))
+	// config, err := google.JWTConfigFromJSON(jsonKey, "https://www.googleapis.com/auth/cse")
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// client := config.Client(ctx)
+
+	credentials, err := google.CredentialsFromJSON(ctx, jsonKey, "https://www.googleapis.com/auth/cse")
+	if err != nil {
+		return nil, err
+	}
+	// service, err := customsearch.New(client)
+	service, err := customsearch.NewService(ctx, option.WithCredentials(credentials))
 	if err != nil {
 		return nil, err
 	}
