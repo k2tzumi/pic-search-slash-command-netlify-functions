@@ -33,4 +33,5 @@ func main() {
 	http.HandleFunc("/", handler.Handle)
 
 	lambda.Start(httpadapter.New(http.DefaultServeMux).ProxyWithContext)
+	handler.Wait()
 }

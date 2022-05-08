@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -19,10 +20,12 @@ type handler struct {
 	verificationToken    string
 	cse                  *customsearch.Service
 	customSearchEngineId string
+	wg                   *sync.WaitGroup
 }
 
 type Handler interface {
 	Handle(w http.ResponseWriter, r *http.Request)
+	Wait()
 }
 
 type ServiceAccountKey struct {
@@ -76,7 +79,7 @@ func NewHandler(verificationToken string, serviceAccountKey ServiceAccountKey, c
 	if err != nil {
 		return nil, err
 	}
-	return &handler{verificationToken, service, customSearchEngineId}, nil
+	return &handler{verificationToken, service, customSearchEngineId, nil}, nil
 }
 
 func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
@@ -116,8 +119,10 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			log.Println("execute search error.", err)
 		}
+		h.wg = &sync.WaitGroup{}
 		for i := 0; i < 5; i++ {
-			go postMessage(links, s.ResponseURL)
+			h.wg.Add(1)
+			go postMessage(links, s.ResponseURL, h.wg)
 		}
 	default:
 		_, err := h.executeSearch(s.Text, w)
@@ -128,7 +133,8 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func postMessage(links []string, responseURL string) {
+func postMessage(links []string, responseURL string, wg *sync.WaitGroup) {
+	defer wg.Done()
 	time.Sleep(1 * time.Second)
 	msg := &slack.WebhookMessage{
 		Username:     "pic-search-bot",
@@ -202,4 +208,8 @@ func pickup(links []string) string {
 	links = links[:pickup]
 
 	return let
+}
+
+func (h *handler) Wait() {
+	h.wg.Wait()
 }
