@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/slack-go/slack"
 	"golang.org/x/oauth2/google"
 	customsearch "google.golang.org/api/customsearch/v1"
@@ -67,17 +68,10 @@ func NewHandler(verificationToken string, serviceAccountKey ServiceAccountKey, c
 	}
 
 	ctx := context.Background()
-	// config, err := google.JWTConfigFromJSON(jsonKey, "https://www.googleapis.com/auth/cse")
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// client := config.Client(ctx)
-
 	credentials, err := google.CredentialsFromJSON(ctx, jsonKey, "https://www.googleapis.com/auth/cse")
 	if err != nil {
 		return nil, err
 	}
-	// service, err := customsearch.New(client)
 	service, err := customsearch.NewService(ctx, option.WithCredentials(credentials))
 	if err != nil {
 		return nil, err
@@ -116,32 +110,64 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 		if _, err := w.Write(b); err != nil {
 			log.Fatal("Response write error.", err)
 		}
+	case "ksk":
+		links, err := h.executeSearch(s.Text, w)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Println("execute search error.", err)
+		}
+		defer func() {
+			for i := 0; i < 5; i++ {
+				postMessage(links, s.ResponseURL)
+			}
+		}()
 	default:
-		// TODO: Implement keyword counter
-		links, err := h.search(s.Text, 1)
+		_, err := h.executeSearch(s.Text, w)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Println("search error.", err)
-			return
-		}
-		params := &slack.Msg{
-			Text:         pickup(links),
-			ResponseType: slack.ResponseTypeInChannel,
-		}
-		b, err := json.Marshal(params)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Println("json marshal error.", err)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if _, err := w.Write(b); err != nil {
-			log.Fatal("Response write error.", err)
+			log.Println("execute search error.", err)
 		}
 	}
 }
 
-func (h *handler) search(keyword string, repeate int) ([]string, error) {
+func postMessage(links []string, responseURL string) {
+	msg := &slack.WebhookMessage{
+		Username:     "pic-search-bot",
+		IconEmoji:    "frame_with_picture",
+		Text:         pickup(links),
+		ResponseType: slack.ResponseTypeInChannel,
+	}
+	if err := slack.PostWebhook(responseURL, msg); err != nil {
+		log.Println("execute search error.", err)
+	}
+}
+
+func (h *handler) executeSearch(keyword string, w http.ResponseWriter) (links []string, err error) {
+	// TODO: Implement keyword counter
+	links, err = h.search(keyword, 1)
+	if err != nil {
+		err = errors.Wrap(err, "search failed.")
+		return
+	}
+	params := &slack.Msg{
+		Text:         pickup(links),
+		ResponseType: slack.ResponseTypeInChannel,
+	}
+	b, err := json.Marshal(params)
+	if err != nil {
+		err = errors.Wrap(err, "json marshal error.")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if _, err = w.Write(b); err != nil {
+		err = errors.Wrap(err, "response write error.")
+		return
+	}
+
+	return
+}
+
+func (h *handler) search(keyword string, repeate int) (links []string, err error) {
 	// Number of search results to return
 	const NUM = 10
 	start := int64(NUM*(repeate-1) + 1)
@@ -158,20 +184,23 @@ func (h *handler) search(keyword string, repeate int) ([]string, error) {
 
 	call, err := search.Do()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "do search error.")
 	}
 
-	links := make([]string, len(call.Items))
-
-	for index, r := range call.Items {
-		links[index] = r.Link
+	links = []string{}
+	for _, r := range call.Items {
+		links = append(links, r.Link)
 	}
 
-	return links, nil
+	return
 }
 
 func pickup(links []string) string {
 	rand.Seed(time.Now().UnixNano())
+	pickup := rand.Intn(len(links))
+	// pop
+	let := links[pickup]
+	links = links[:pickup]
 
-	return links[rand.Intn(len(links))]
+	return let
 }
