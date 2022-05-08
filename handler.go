@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -135,6 +136,7 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 
 func postMessage(links []string, responseURL string, wg *sync.WaitGroup) {
 	defer wg.Done()
+	fmt.Println("postMessage..")
 	time.Sleep(1 * time.Second)
 	msg := &slack.WebhookMessage{
 		Username:     "pic-search-bot",
@@ -211,5 +213,7 @@ func pickup(links []string) string {
 }
 
 func (h *handler) Wait() {
-	h.wg.Wait()
+	if h.wg != nil {
+		h.wg.Wait()
+	}
 }
