@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
@@ -17,6 +18,8 @@ func main() {
 	projectId := os.Getenv("PROJECT_ID")
 	privateKeyId := os.Getenv("PRIVATE_KEY_ID")
 	privateKey := os.Getenv("PRIVATE_KEY")
+	// Replace newline character
+	privateKey = strings.NewReplacer("\\n", "\n").Replace(privateKey)
 	fmt.Println(privateKey)
 	clientEmail := os.Getenv("CLIENT_EMAIL")
 	clientId := os.Getenv("CLIENT_ID")
