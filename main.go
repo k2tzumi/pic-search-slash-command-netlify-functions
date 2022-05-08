@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +17,7 @@ func main() {
 	projectId := os.Getenv("PROJECT_ID")
 	privateKeyId := os.Getenv("PRIVATE_KEY_ID")
 	privateKey := os.Getenv("PRIVATE_KEY")
+	fmt.Println(privateKey)
 	clientEmail := os.Getenv("CLIENT_EMAIL")
 	clientId := os.Getenv("CLIENT_ID")
 	clientX509CertUrl := os.Getenv("CLIENT_X509_CERT_URL")
