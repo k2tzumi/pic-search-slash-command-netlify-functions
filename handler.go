@@ -116,11 +116,9 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			log.Println("execute search error.", err)
 		}
-		defer func() {
-			for i := 0; i < 5; i++ {
-				postMessage(links, s.ResponseURL)
-			}
-		}()
+		for i := 0; i < 5; i++ {
+			go postMessage(links, s.ResponseURL)
+		}
 	default:
 		_, err := h.executeSearch(s.Text, w)
 		if err != nil {
