@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +19,6 @@ func main() {
 	privateKey := os.Getenv("PRIVATE_KEY")
 	// Replace newline character
 	privateKey = strings.NewReplacer("\\n", "\n").Replace(privateKey)
-	fmt.Println(privateKey)
 	clientEmail := os.Getenv("CLIENT_EMAIL")
 	clientId := os.Getenv("CLIENT_ID")
 	clientX509CertUrl := os.Getenv("CLIENT_X509_CERT_URL")
