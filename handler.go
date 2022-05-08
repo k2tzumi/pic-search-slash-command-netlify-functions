@@ -131,6 +131,7 @@ func (h *handler) Handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func postMessage(links []string, responseURL string) {
+	time.Sleep(1 * time.Second)
 	msg := &slack.WebhookMessage{
 		Username:     "pic-search-bot",
 		IconEmoji:    "frame_with_picture",
