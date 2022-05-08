@@ -23,9 +23,50 @@ type Handler interface {
 	Handle(w http.ResponseWriter, r *http.Request)
 }
 
-func NewHandler(verificationToken string, googleApiKey string, customSearchEngineId string) (Handler, error) {
+type ServiceAccountKey struct {
+	Type                    string `json:"type"`
+	ProjectId               string `json:"project_id"`
+	PrivateKeyId            string `json:"private_key_id"`
+	PrivateKey              string `json:"private_key"`
+	ClientEmail             string `json:"client_email"`
+	ClientId                string `json:"client_id"`
+	AuthUri                 string `json:"auth_uri"`
+	TokenUri                string `json:"token_uri"`
+	AuthProviderX509CertUrl string `json:"auth_provider_x509_cert_url"`
+	ClientX509CertUrl       string `json:"client_x509_cert_url"`
+}
+
+func NewServiceAccountKey(
+	projectId string,
+	privateKeyId string,
+	privateKey string,
+	clientEmail string,
+	clientId string,
+	clientX509CertUrl string,
+) ServiceAccountKey {
+	serviceAccountKey := ServiceAccountKey{}
+	serviceAccountKey.Type = "service_account"
+	serviceAccountKey.ProjectId = projectId
+	serviceAccountKey.PrivateKeyId = privateKeyId
+	serviceAccountKey.PrivateKey = privateKey
+	serviceAccountKey.ClientEmail = clientEmail
+	serviceAccountKey.ClientId = clientId
+	serviceAccountKey.AuthUri = "https://accounts.google.com/o/oauth2/auth"
+	serviceAccountKey.TokenUri = "https://oauth2.googleapis.com/token"
+	serviceAccountKey.AuthProviderX509CertUrl = "https://www.googleapis.com/oauth2/v1/certs"
+	serviceAccountKey.ClientX509CertUrl = clientX509CertUrl
+
+	return serviceAccountKey
+}
+
+func NewHandler(verificationToken string, serviceAccountKey ServiceAccountKey, customSearchEngineId string) (Handler, error) {
+	jsonKey, err := json.Marshal(serviceAccountKey)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx := context.Background()
-	service, err := customsearch.NewService(ctx, option.WithAPIKey(googleApiKey))
+	service, err := customsearch.NewService(ctx, option.WithCredentialsJSON(jsonKey))
 	if err != nil {
 		return nil, err
 	}
